@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>AI Chatbot</title>
+		<style>
+			html,
+			body {
+				height: 100%;
+				margin: 0;
+				font-family: Arial, sans-serif;
+			}
+			#chatbox {
+				display: flex;
+				flex-direction: column;
+				height: 100vh; /* Full viewport height */
+				width: 100vw; /* Full viewport width */
+				background-color: #ffffff;
+				border: 1px solid #ccc;
+				box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+				border-radius: 8px;
+			}
+			#messages {
+				flex: 1;
+				padding: 15px;
+				overflow-y: auto;
+				border-bottom: 1px solid #ccc;
+			}
+			.message {
+				margin: 5px 0;
+				padding: 10px;
+				border-radius: 10px;
+				max-width: 80%;
+				display: inline-block;
+				clear: both;
+			}
+			.user-message {
+				background-color: #007bff;
+				color: white;
+				text-align: right;
+				float: right;
+			}
+			.ai-message {
+				background-color: #e5e5e5;
+				color: black;
+				text-align: left;
+				float: left;
+			}
+			#input {
+				display: flex;
+				border-top: 1px solid #ccc;
+				background-color: #fafafa;
+				padding: 5px;
+			}
+			#user-input {
+				flex: 1;
+				padding: 8px;
+				border: none;
+				border-radius: 0 0 0 8px;
+				outline: none;
+			}
+			#send-button,
+			#restart-button {
+				padding: 5px 10px; /* Adjust padding for smaller buttons */
+				font-size: 0.9em; /* Slightly smaller font size */
+				border: none;
+				color: white;
+				cursor: pointer;
+				border-radius: 5px; /* Slightly rounded corners */
+				margin-left: 5px; /* Space between buttons */
+			}
+			#send-button {
+				background-color: #007bff;
+			}
+			#send-button:hover {
+				background-color: #0056b3;
+			}
+			#restart-button {
+				background-color: #dc3545;
+			}
+			#restart-button:hover {
+				background-color: #c82333;
+			}
+			#buttons {
+				display: flex;
+				align-items: center; /* Center buttons vertically */
+			}
+		</style>
+	</head>
+	<body>
+		<div id="chatbox">
+			<div id="messages"></div>
+			<div id="input">
+				<div id="buttons">
+					<button id="restart-button">Restart Chat</button>
+					<button id="send-button">Send</button>
+				</div>
+				<input type="text" id="user-input" placeholder="Type a message..." />
+			</div>
+		</div>
+
+		<script>
+			document.addEventListener('DOMContentLoaded', () => {
+				const messages = document.getElementById('messages');
+				const userInput = document.getElementById('user-input');
+				const sendButton = document.getElementById('send-button');
+				const restartButton = document.getElementById('restart-button');
+
+				function addMessage(text, fromUser = true) {
+					const messageDiv = document.createElement('div');
+					messageDiv.textContent = text;
+					messageDiv.className = 'message ' + (fromUser ? 'user-message' : 'ai-message');
+					messages.appendChild(messageDiv);
+					messages.scrollTop = messages.scrollHeight; // Scroll to the bottom
+				}
+
+				function typeMessage(text, element, callback) {
+					let index = 0;
+					const typingSpeed = 50; // Speed of typing in milliseconds
+
+					function type() {
+						if (index < text.length) {
+							element.textContent += text.charAt(index);
+							index++;
+							setTimeout(type, typingSpeed);
+						} else if (callback) {
+							callback();
+						}
+					}
+
+					type();
+				}
+
+				function handleUserInput() {
+					const text = userInput.value.trim();
+					if (text) {
+						addMessage(text);
+						userInput.value = '';
+
+						// Send user input to server
+						fetch('http://localhost:3000/chat', {
+							// Ensure this matches your server's URL and port
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+							},
+							body: JSON.stringify({ message: text }),
+						})
+							.then((response) => {
+								if (!response.ok) {
+									throw new Error('Network response was not ok');
+								}
+								return response.json();
+							})
+							.then((data) => {
+								if (data.reply) {
+									const aiMessageDiv = document.createElement('div');
+									aiMessageDiv.className = 'message ai-message';
+									messages.appendChild(aiMessageDiv);
+
+									typeMessage(data.reply, aiMessageDiv, () => {
+										messages.scrollTop = messages.scrollHeight; // Scroll to the bottom
+									});
+								} else {
+									addMessage('Sorry, something went wrong. Please try again.', false);
+								}
+							})
+							.catch((error) => {
+								console.error('Error:', error);
+								addMessage('Sorry, something went wrong. Please try again.', false);
+							});
+					}
+				}
+
+				function restartChat() {
+					messages.innerHTML = ''; // Clear chat messages
+					userInput.value = ''; // Clear input field
+				}
+
+				sendButton.addEventListener('click', handleUserInput);
+				restartButton.addEventListener('click', restartChat);
+
+				userInput.addEventListener('keypress', (e) => {
+					if (e.key === 'Enter') {
+						handleUserInput();
+					}
+				});
+			});
+		</script>
+	</body>
+</html>
